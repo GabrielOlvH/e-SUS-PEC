@@ -8,8 +8,8 @@ services:
       - esus_backups:/backups
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
     build:
-      context: ./aws
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.coolify
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASS=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASS:-pass}}

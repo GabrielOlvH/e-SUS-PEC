@@ -1,0 +1,65 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    locales wget curl jq \
+    && locale-gen "pt_BR.UTF-8" \
+    && dpkg-reconfigure --frontend=noninteractive locales \
+    && apt-get install -y \
+    coreutils apt-utils gnupg2 software-properties-common file libfreetype6 ntp ttf-mscorefonts-installer fontconfig
+
+RUN fc-cache -fv && chmod -R 777 /usr/share/fonts/truetype/msttcorefonts
+
+# Install Java 17 (Amazon Corretto)
+RUN wget -O - https://apt.corretto.aws/corretto.key | gpg --dearmor -o /usr/share/keyrings/corretto-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/corretto-keyring.gpg] https://apt.corretto.aws stable main" | tee /etc/apt/sources.list.d/corretto.list && \
+    apt-get update && apt-get install -y java-17-amazon-corretto-jdk
+
+# Install system packages
+RUN sed -i 's/# deb/deb/g' /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install --no-install-recommends -y \
+    dbus systemd systemd-cron rsyslog iproute2 python-is-python3 python3 python3-apt sudo bash ca-certificates postgresql-client && \
+    apt-get clean && \
+    rm -rf /usr/share/doc/* /usr/share/man/* /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Create required directories
+RUN mkdir -p /opt/e-SUS/webserver/chaves /var/www/html /backups
+WORKDIR /var/www/html
+
+# Download latest e-SUS PEC
+RUN DOWNLOAD_URL="https://arquivos.esusab.ufsc.br/PEC/mtRazOmMxfBpkEMK/5.3.22/eSUS-AB-PEC-5.3.22-Linux64.jar" && \
+    JAR_FILENAME="eSUS-AB-PEC-5.3.22-Linux64.jar" && \
+    wget -O "/var/www/html/$JAR_FILENAME" "$DOWNLOAD_URL" && \
+    echo "JAR_FILENAME=$JAR_FILENAME" > /etc/jar_install_filename
+
+# Mock systemctl and ps for PEC installation
+RUN mv /bin/ps /bin/ps.original && \
+    echo '#!/bin/sh' > /bin/ps && \
+    echo 'if [ "$1" = "--no-headers" ] && [ "$2" = "-o" ] && [ "$3" = "comm" ] && [ "$4" = "1" ]; then' >> /bin/ps && \
+    echo '    echo "systemd (simulated: ps $@)"' >> /bin/ps && \
+    echo 'else' >> /bin/ps && \
+    echo '    /bin/ps.original "$@"' >> /bin/ps && \
+    echo 'fi' >> /bin/ps && \
+    chmod +x /bin/ps
+
+RUN echo '#!/bin/sh' > /bin/systemctl && \
+    echo 'echo "Simulated systemctl command: $0 $@"' >> /bin/systemctl && \
+    echo 'case "$1" in' >> /bin/systemctl && \
+    echo '  start|stop|restart|status) exit 0 ;;' >> /bin/systemctl && \
+    echo '  *) echo "Simulated systemctl: $@"; exit 0 ;;' >> /bin/systemctl && \
+    echo 'esac' >> /bin/systemctl && \
+    chmod +x /bin/systemctl
+
+# Copy installation scripts
+COPY ./install.sh /var/www/html/install.sh
+COPY ./entrypoint.sh /var/www/html/entrypoint.sh
+RUN chmod +x /var/www/html/install.sh /var/www/html/entrypoint.sh
+
+# Copy any backup files if they exist
+COPY *.sql /backups/ 2>/dev/null || :
+COPY *.backup /backups/ 2>/dev/null || :
+
+ENTRYPOINT ["/var/www/html/entrypoint.sh"]
