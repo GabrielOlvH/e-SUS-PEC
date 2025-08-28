@@ -30,7 +30,7 @@ RUN mkdir -p /opt/e-SUS/webserver/chaves /var/www/html /backups
 WORKDIR /var/www/html
 
 # Download latest e-SUS PEC
-RUN DOWNLOAD_URL="https://arquivos.esusab.ufsc.br/PEC/mtRazOmMxfBpkEMK/5.3.22/eSUS-AB-PEC-5.3.22-Linux64.jar" && \
+RUN DOWNLOAD_URL="https://arquivos.esusab.ufsc.br/PEC/bf36cd4a36f49f8e/5.4.11/eSUS-AB-PEC-5.4.11-Linux64.jar" && \
     JAR_FILENAME="eSUS-AB-PEC-5.3.22-Linux64.jar" && \
     wget -O "/var/www/html/$JAR_FILENAME" "$DOWNLOAD_URL" && \
     echo "JAR_FILENAME=$JAR_FILENAME" > /etc/jar_install_filename
