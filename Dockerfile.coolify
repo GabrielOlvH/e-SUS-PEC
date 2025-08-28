@@ -58,8 +58,4 @@ COPY ./install.sh /var/www/html/install.sh
 COPY ./entrypoint.sh /var/www/html/entrypoint.sh
 RUN chmod +x /var/www/html/install.sh /var/www/html/entrypoint.sh
 
-# Copy any backup files if they exist
-COPY *.sql /backups/ 2>/dev/null || :
-COPY *.backup /backups/ 2>/dev/null || :
-
 ENTRYPOINT ["/var/www/html/entrypoint.sh"]
