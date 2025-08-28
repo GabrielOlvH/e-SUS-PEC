@@ -1,0 +1,122 @@
+services:
+  pec:
+    container_name: pec
+    platform: linux/amd64
+    restart: unless-stopped
+    volumes:
+      - esus_opt:/opt/e-SUS
+      - esus_backups:/backups
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    build:
+      context: .
+      dockerfile: Dockerfile.coolify
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASS=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASS:-pass}}
+      - POSTGRES_HOST=${POSTGRES_HOST:-db}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-esus}
+      - TRAINING=${TRAINING:-false}
+      - TZ=${TZ:-America/Sao_Paulo}
+      - APP_PORT=8080
+      - SERVICE_FQDN_PEC=${SERVICE_FQDN_PEC}
+    privileged: true
+    stdin_open: true
+    tty: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+
+  db:
+    container_name: db
+    image: postgres:9.6-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASS:-pass}}
+      - POSTGRES_DB=${POSTGRES_DB:-esus}
+    volumes:
+      - esus_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-init:
+    image: postgres:9.6-alpine
+    restart: "no"
+    environment:
+      - PGPASSWORD=${SERVICE_PASSWORD_POSTGRES:-${POSTGRES_PASS:-pass}}
+      - PANEL_DB_PASSWORD=${SERVICE_PASSWORD_PANEL:-${PANEL_DB_PASSWORD:-panel_pass}}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./init-panel-user.sql:/init-panel-user.sql:ro
+    command: >
+      sh -c "
+      echo 'Waiting for database...' &&
+      sleep 5 &&
+      echo 'Creating read-only user for panel...' &&
+      psql -h db -U postgres -d esus -c \"
+        DO \\\$\\\$
+        BEGIN
+          IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'esus_leitura') THEN
+            CREATE USER esus_leitura WITH PASSWORD '\${PANEL_DB_PASSWORD}';
+          END IF;
+        END
+        \\\$\\\$;
+        GRANT CONNECT ON DATABASE esus TO esus_leitura;
+        GRANT USAGE ON SCHEMA public TO esus_leitura;
+        GRANT SELECT ON ALL TABLES IN SCHEMA public TO esus_leitura;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO esus_leitura;
+      \" &&
+      echo 'Read-only user created successfully'"
+
+  painel:
+    image: "painelsaudefiocruz/painel-esus:0.9.3"
+    container_name: painel_aps
+    restart: unless-stopped
+    environment:
+      - RELOAD_BASE_SCHELDULE=4:00
+      - DB_HOST=db
+      - DB_USER=esus_leitura
+      - DB_PASSWORD=${SERVICE_PASSWORD_PANEL:-${PANEL_DB_PASSWORD:-panel_pass}}
+      - DB_PORT=5432
+      - DB_DATABASE=esus
+      - CIDADE_IBGE=${CIDADE_IBGE}
+      - ESTADO=${ESTADO}
+      - ADMIN_USERNAME=${PANEL_ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${SERVICE_PASSWORD_PANEL_ADMIN:-${PANEL_ADMIN_PASSWORD}}
+      - POPULATION=${POPULATION}
+      - SECRET_TOKEN=${SERVICE_GENERATED_SECRET:-${SECRET_TOKEN}}
+      - PASSWORD_SALT=${SERVICE_GENERATED_SALT:-${PASSWORD_SALT}}
+      - BRIDGE_LOGIN_URL=${BRIDGE_LOGIN_URL:-}
+      - ENV=linux
+      - GENERATE_BASE=True
+      - SERVICE_FQDN_PAINEL=${SERVICE_FQDN_PAINEL}
+    depends_on:
+      - db
+      - db-init
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  esus_opt:
+    driver: local
+  esus_backups:
+    driver: local
+  esus_db:
+    driver: local

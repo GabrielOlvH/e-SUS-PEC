@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  pec:
+    extends:
+      file: docker-compose.coolify.yml
+      service: pec
+
+  db:
+    extends:
+      file: docker-compose.coolify.yml
+      service: db
+
+  painel:
+    image: "painelsaudefiocruz/painel-esus:0.9.3"
+    container_name: painel_aps
+    restart: unless-stopped
+    environment:
+      RELOAD_BASE_SCHELDULE: '4:00'
+      DB_HOST: db  # Points to the db service
+      DB_USER: esus_leitura
+      DB_PASSWORD: ${PANEL_DB_PASSWORD:-secure_password_here}
+      DB_PORT: 5432
+      DB_DATABASE: esus
+      CIDADE_IBGE: ${CIDADE_IBGE}  # Your city's IBGE code
+      ESTADO: ${ESTADO}  # Your state abbreviation (e.g., BA, SP, RJ)
+      ADMIN_USERNAME: ${PANEL_ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${PANEL_ADMIN_PASSWORD}  # Generate with: openssl rand -base64 12
+      POPULATION: ${POPULATION}  # Your city's population
+      SECRET_TOKEN: ${SECRET_TOKEN}  # Generate with: openssl rand -base64 22
+      PASSWORD_SALT: ${PASSWORD_SALT}  # Generate with script in README
+      BRIDGE_LOGIN_URL: ${BRIDGE_LOGIN_URL:-}
+      ENV: linux
+      GENERATE_BASE: 'True'
+    ports:
+      - "${PANEL_PORT:-5001}:5001"
+    depends_on:
+      - db
+    networks:
+      - default
+
+volumes:
+  esus_opt:
+    driver: local
+  esus_backups:
+    driver: local
+  esus_db:
+    driver: local

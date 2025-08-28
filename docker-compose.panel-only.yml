@@ -1,0 +1,29 @@
+services:
+  painel:
+    image: "painelsaudefiocruz/painel-esus:0.9.3"
+    container_name: painel_aps
+    restart: unless-stopped
+    environment:
+      - RELOAD_BASE_SCHELDULE=4:00
+      - DB_HOST=${DB_HOST}  # Your PEC database host/IP
+      - DB_USER=${DB_USER:-esus_leitura}
+      - DB_PASSWORD=${DB_PASSWORD}  # Read-only user password
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_DATABASE=${DB_DATABASE:-esus}
+      - CIDADE_IBGE=${CIDADE_IBGE}  # Your city IBGE code
+      - ESTADO=${ESTADO}  # State abbreviation (BA, SP, etc)
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${SERVICE_PASSWORD_ADMIN:-${ADMIN_PASSWORD}}  # Coolify auto-generates if using SERVICE_PASSWORD_ADMIN
+      - POPULATION=${POPULATION}  # Your city population
+      - SECRET_TOKEN=${SERVICE_GENERATED_SECRET:-${SECRET_TOKEN}}
+      - PASSWORD_SALT=${SERVICE_GENERATED_SALT:-${PASSWORD_SALT}}
+      - BRIDGE_LOGIN_URL=${BRIDGE_LOGIN_URL:-}
+      - ENV=linux
+      - GENERATE_BASE=True
+      - SERVICE_FQDN_PAINEL=${SERVICE_FQDN_PAINEL}  # Coolify auto-assigns domain
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
