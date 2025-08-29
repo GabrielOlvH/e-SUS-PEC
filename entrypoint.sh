@@ -18,6 +18,17 @@ set -e
 }
 '
 
+# Se o JAR não estiver presente na imagem, baixa em tempo de execução usando variáveis de ambiente
+if [ -n "$FILENAME" ]; then
+  if [ -z "$JAR_FILENAME" ]; then
+    JAR_FILENAME=$(basename "$FILENAME")
+  fi
+  if [ ! -f "/var/www/html/$JAR_FILENAME" ]; then
+    echo ">> Baixando pacote: $FILENAME -> /var/www/html/$JAR_FILENAME"
+    wget -O "/var/www/html/$JAR_FILENAME" "$FILENAME"
+  fi
+fi
+
 # Verifica se o sistema já foi instalado pela conferência da existência de um arquivo /etc/pec.config, caso não exista, instalar
 if [ ! -f /etc/pec.config ]; then
     echo ">> Sistema ainda não foi instalado. Instalando..."

@@ -74,7 +74,14 @@ RUN mkdir -p /var/www/html
 WORKDIR /var/www/html
 
 # Download the JAR directly during build (no need for build.sh)
-RUN test -n "$FILENAME" && test -n "$JAR_FILENAME" && wget -O "$JAR_FILENAME" "$FILENAME"
+RUN set -e; \
+    if [ -n "$FILENAME" ]; then \
+      OUT_FILE="${JAR_FILENAME:-$(basename "$FILENAME")}"; \
+      echo "Downloading $FILENAME -> $OUT_FILE"; \
+      wget -O "$OUT_FILE" "$FILENAME"; \
+    else \
+      echo "FILENAME not provided; skipping JAR download"; \
+    fi
 
 # Bring scripts
 COPY install.sh ./
