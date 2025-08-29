@@ -49,10 +49,36 @@ if [ -f "/etc/pec.config" ]; then
     echo ">> Iniciando aplicação principal (background) e exibindo logs..."
     /opt/e-SUS/webserver/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0 &
     SERVER_PID=$!
-    # Exibe logs do servidor no console
-    if [ -f "/opt/e-SUS/webserver/standalone/log/server.log" ]; then
-      tail -F /opt/e-SUS/webserver/standalone/log/server.log &
-    fi
+    # Exibe logs do servidor no console (varias tentativas/locais)
+    (
+      try_tail() {
+        for f in \
+          "/opt/e-SUS/webserver/standalone/log/server.log" \
+          "/opt/e-SUS/webserver/log/server.log" \
+          "/opt/e-SUS/webserver/pec.log"; do
+          if [ -f "$f" ] && [ -s "$f" ]; then
+            echo ">> Tailing logs: $f"
+            exec tail -F "$f"
+          fi
+        done
+        # Descobrir qualquer log não vazio
+        found=$(find /opt/e-SUS/webserver -maxdepth 4 -type f -name "*.log" -size +0c 2>/dev/null | head -n1)
+        if [ -n "$found" ]; then
+          echo ">> Tailing logs: $found"
+          exec tail -F "$found"
+        fi
+        # Fallback: stdout do processo
+        if [ -e "/proc/$SERVER_PID/fd/1" ]; then
+          echo ">> No log file found yet. Streaming process stdout."
+          exec cat "/proc/$SERVER_PID/fd/1"
+        fi
+      }
+      # Tente repetir por algum tempo até aparecer arquivo de log
+      for i in $(seq 1 30); do
+        try_tail
+        sleep 2
+      done
+    ) &
     wait $SERVER_PID
   else
     # Se a instalação não foi bem-sucedida, exiba uma mensagem de erro
@@ -67,7 +93,30 @@ fi
 echo ">> Iniciando aplicação principal (background) e exibindo logs..."
 /opt/e-SUS/webserver/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0 &
 SERVER_PID=$!
-if [ -f "/opt/e-SUS/webserver/standalone/log/server.log" ]; then
-  tail -F /opt/e-SUS/webserver/standalone/log/server.log &
-fi
+(
+  try_tail() {
+    for f in \
+      "/opt/e-SUS/webserver/standalone/log/server.log" \
+      "/opt/e-SUS/webserver/log/server.log" \
+      "/opt/e-SUS/webserver/pec.log"; do
+      if [ -f "$f" ] && [ -s "$f" ]; then
+        echo ">> Tailing logs: $f"
+        exec tail -F "$f"
+      fi
+    done
+    found=$(find /opt/e-SUS/webserver -maxdepth 4 -type f -name "*.log" -size +0c 2>/dev/null | head -n1)
+    if [ -n "$found" ]; then
+      echo ">> Tailing logs: $found"
+      exec tail -F "$found"
+    fi
+    if [ -e "/proc/$SERVER_PID/fd/1" ]; then
+      echo ">> No log file found yet. Streaming process stdout."
+      exec cat "/proc/$SERVER_PID/fd/1"
+    fi
+  }
+  for i in $(seq 1 30); do
+    try_tail
+    sleep 2
+  done
+) &
 wait $SERVER_PID
