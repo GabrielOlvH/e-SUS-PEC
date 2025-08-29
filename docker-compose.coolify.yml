@@ -29,11 +29,16 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-esus}
       TZ: ${TZ:-America/Sao_Paulo}
       TRAINING: ${TRAINING}
+      JAVA_TOOL_OPTIONS: "-Xms1g -Xmx4g"
     volumes:
       - esus_opt:/opt/e-SUS
       - esus_backups:/backups
     expose:
       - "8080"
+    deploy:
+      resources:
+        limits:
+          memory: 4g
 
 volumes:
   esus_opt:
