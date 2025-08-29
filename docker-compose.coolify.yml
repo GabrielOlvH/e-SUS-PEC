@@ -32,8 +32,8 @@ services:
     volumes:
       - esus_opt:/opt/e-SUS
       - esus_backups:/backups
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
 
 volumes:
   esus_opt:
