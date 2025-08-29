@@ -105,13 +105,13 @@ fi
 
 # Exibe mensagem de instalação
 echo "${GREEN}Instalando e-SUS-PEC com o arquivo $jar_filename...${NC}"
-# # Em ambientes CI/PaaS (ex.: Coolify), evite mexer nos recursos de runtime
+# Em ambientes CI/PaaS (ex.: Coolify), evite mexer nos recursos de runtime
 # if [ "$skip_compose" != true ]; then
 #     docker compose -f docker-compose.local-db.yml down --volumes --remove-orphans || true
 #     docker compose -f docker-compose.external-db.yml down --volumes --remove-orphans || true
 # else
 #     echo "${GREEN}SKIP_COMPOSE habilitado: ignorando docker compose down/up.${NC}"
-fi
+# fi
 
 # Verifica se o psql está disponível
 if command -v psql > /dev/null; then
