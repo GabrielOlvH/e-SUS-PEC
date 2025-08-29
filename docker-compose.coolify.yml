@@ -33,6 +33,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASS:-pass}
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SERVER_PORT: ${HTTP_PORT:-8080}
+      LOGGING_FILE_NAME: /dev/stdout
+      LOGGING_FILE: /dev/stdout
+      LOGGING_LEVEL_ROOT: INFO
+      SPRING_MAIN_BANNER_MODE: off
       TZ: ${TZ:-America/Sao_Paulo}
       TRAINING: ${TRAINING}
       HTTP_PORT: ${HTTP_PORT:-8080}
