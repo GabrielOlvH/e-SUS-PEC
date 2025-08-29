@@ -11,6 +11,7 @@ filename=''
 https_domain=''
 use_external_db=false
 production=false
+skip_compose=${SKIP_COMPOSE:-false}
 
 # Exibe ajuda do script
 if [ "$1" = "--help" ]; then
@@ -64,8 +65,10 @@ if [ -f ".env" ]; then
     https_domain=${https_domain:-$HTTPS_DOMAIN}
     echo "${GREEN}Arquivo .env carregado com sucesso.${NC}"
 else
-    echo "${RED}Arquivo .env não encontrado.${NC}"
-    exit 1
+    echo "${RED}Arquivo .env não encontrado. Usando variáveis de ambiente atuais (se definidas).${NC}"
+    # Fallback para variáveis já presentes no ambiente (ex.: Coolify/CI)
+    if [ -z "$filename" ] && [ -n "$FILENAME" ]; then filename="$FILENAME"; fi
+    if [ -z "$https_domain" ] && [ -n "$HTTPS_DOMAIN" ]; then https_domain="$HTTPS_DOMAIN"; fi
 fi
 
 # Busca o link do arquivo JAR, caso não especificado
@@ -102,8 +105,13 @@ fi
 
 # Exibe mensagem de instalação
 echo "${GREEN}Instalando e-SUS-PEC com o arquivo $jar_filename...${NC}"
-docker compose -f docker-compose.local-db.yml down --volumes --remove-orphans
-docker compose -f docker-compose.external-db.yml down --volumes --remove-orphans
+# Em ambientes CI/PaaS (ex.: Coolify), evite mexer nos recursos de runtime
+if [ "$skip_compose" != true ]; then
+    docker compose -f docker-compose.local-db.yml down --volumes --remove-orphans || true
+    docker compose -f docker-compose.external-db.yml down --volumes --remove-orphans || true
+else
+    echo "${GREEN}SKIP_COMPOSE habilitado: ignorando docker compose down/up.${NC}"
+fi
 
 # Verifica se o psql está disponível
 if command -v psql > /dev/null; then
@@ -132,7 +140,9 @@ if $use_external_db; then
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg HTTPS_DOMAIN=$https_domain \
         --build-arg DB_URL=$jdbc_url
-    docker compose -f docker-compose.external-db.yml up -d
+    if [ "$skip_compose" != true ]; then
+        docker compose -f docker-compose.external-db.yml up -d
+    fi
 else
     jdbc_url="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
     echo "\n${GREEN}Construindo e subindo Docker com banco de dados local...${NC}"
@@ -145,5 +155,7 @@ else
         --build-arg JAR_FILENAME=$jar_filename \
         --build-arg DB_URL=$jdbc_url \
         --build-arg TRAINING=$training
-    docker compose -f docker-compose.local-db.yml up -d
+    if [ "$skip_compose" != true ]; then
+        docker compose -f docker-compose.local-db.yml up -d
+    fi
 fi
