@@ -29,12 +29,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-esus}
       TZ: ${TZ:-America/Sao_Paulo}
       TRAINING: ${TRAINING}
-      JAVA_TOOL_OPTIONS: "-Xms1g -Xmx4g"
+      HTTP_PORT: ${HTTP_PORT:-8080}
+      HTTPS_PORT: ${HTTPS_PORT:-8443}
+      JAVA_TOOL_OPTIONS: "-Xms1g -Xmx4g -Djboss.http.port=${HTTP_PORT:-8080} -Djboss.https.port=${HTTPS_PORT:-8443}"
     volumes:
       - esus_opt:/opt/e-SUS
       - esus_backups:/backups
     expose:
-      - "8080"
+      - "${HTTP_PORT:-8080}"
+    ports:
+      - "${HTTP_PORT:-8080}:${HTTP_PORT:-8080}"
+      
     deploy:
       resources:
         limits:
