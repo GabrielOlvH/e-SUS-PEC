@@ -46,8 +46,14 @@ if [ -f "/etc/pec.config" ]; then
   # Se a instalação foi bem-sucedida, o campo "success" deve ser true
   if echo "$config" | grep -q "\"success\" : true"; then
     # Inicie a aplicação principal
-    echo ">> Iniciando aplicação principal..."
-    exec /opt/e-SUS/webserver/standalone.sh
+    echo ">> Iniciando aplicação principal (background) e exibindo logs..."
+    /opt/e-SUS/webserver/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0 &
+    SERVER_PID=$!
+    # Exibe logs do servidor no console
+    if [ -f "/opt/e-SUS/webserver/standalone/log/server.log" ]; then
+      tail -F /opt/e-SUS/webserver/standalone/log/server.log &
+    fi
+    wait $SERVER_PID
   else
     # Se a instalação não foi bem-sucedida, exiba uma mensagem de erro
     echo ">> Erro: Instalação não foi bem-sucedida."
@@ -58,5 +64,10 @@ if [ -f "/etc/pec.config" ]; then
   fi
 fi
 
-echo ">> Iniciando aplicação principal..."
-exec /opt/e-SUS/webserver/standalone.sh
+echo ">> Iniciando aplicação principal (background) e exibindo logs..."
+/opt/e-SUS/webserver/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0 &
+SERVER_PID=$!
+if [ -f "/opt/e-SUS/webserver/standalone/log/server.log" ]; then
+  tail -F /opt/e-SUS/webserver/standalone/log/server.log &
+fi
+wait $SERVER_PID
